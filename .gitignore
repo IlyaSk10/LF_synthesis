@@ -1,0 +1,4 @@
+*.hdf5
+/LF_synth_env
+*.pth
+/.idea
