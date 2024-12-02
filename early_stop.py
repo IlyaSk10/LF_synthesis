@@ -19,12 +19,13 @@ class EarlyStopping:
     def __call__(self, val_loss, checkpoint):
         if self.best_loss is None:
             self.best_loss = val_loss
-            torch.save(checkpoint, 'checkpoint.pth')
+            torch.save(checkpoint['model_state_dict'], 'checkpoint.pth')
             print(self.counter)
         elif val_loss < self.best_loss - self.min_delta:
+            self.counter = 0
             print(self.counter)
             self.best_loss = val_loss
-            torch.save(checkpoint, 'checkpoint.pth')
+            torch.save(checkpoint['model_state_dict'], 'checkpoint.pth')
         else:
             self.counter += 1
             print(self.counter)

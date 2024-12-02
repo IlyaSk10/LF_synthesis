@@ -8,6 +8,8 @@ from net import *
 from dataset import *
 from early_stop import *
 
+import pickle
+
 data = MicroseismDataset(path_to_full_batch='batch_obj.hdf5', path_to_LF_batch='batch_Lf.hdf5')
 train_data, val_data = torch.utils.data.random_split(data, [0.8, 0.2])
 
@@ -85,3 +87,6 @@ plt.legend()
 plt.grid()
 plt.show()
 pass
+
+with open('val_ind.pkl', 'wb') as file:
+    pickle.dump(val_data.indices, file)
