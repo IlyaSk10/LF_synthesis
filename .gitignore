@@ -2,3 +2,6 @@
 /LF_synth_env
 *.pth
 /.idea
+*.pkl
+results*/
+/venv
