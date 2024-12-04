@@ -11,8 +11,9 @@ import pickle
 
 delete = True
 folder_name = 'results_MSE'
-model_name = "checkpoint_MSE.pth"
+model_name = "checkpoint_MSE_Z.pth"
 val_ind_name_file = 'val_ind.pkl'
+channels = ['Z']
 
 if delete:
     try:
@@ -20,19 +21,15 @@ if delete:
     except FileNotFoundError:
         print(f'dir /{folder_name}/ already deleted')
 
+with open(val_ind_name_file, 'rb') as f:
+    val_ind = pickle.load(f)
+
 model = Unet()
 
 model.load_state_dict(torch.load(model_name, weights_only=True))
 
-data = MicroseismDataset(path_to_full_batch='C:/Users/admin/Downloads/batch_obj.hdf5',
-                         path_to_LF_batch='C:/Users/admin/Downloads/batch_Lf.hdf5')
-
-train_data, val_data = torch.utils.data.random_split(data, [0.0, 1.0])
-
-with open(val_ind_name_file, 'rb') as f:
-    val_ind = pickle.load(f)
-
-val_data.indices = val_ind
+val_data = MicroseismDataset(path_to_full_batch='./batch_obj.hdf5',
+                         path_to_LF_batch='./batch_Lf.hdf5', channels=channels, sens_names=val_ind)
 
 val_dataloader = DataLoader(val_data, batch_size=4, shuffle=True)
 

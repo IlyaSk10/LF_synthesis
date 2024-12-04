@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 # from torchsummary import summary
 import torch.optim as optim
 import matplotlib.pyplot as plt
+import h5py
 
 from net import *
 from dataset import *
@@ -10,13 +11,27 @@ from early_stop import *
 
 import pickle
 
-save_model_name = f'checkpoint_MSE.pth'
+save_model_name = f'checkpoint_MSE_Z.pth'
 val_ind_name_file = 'val_ind.pkl'
+channels = ['Z']
+train_fraction = 0.8
 
-data = MicroseismDataset(path_to_full_batch='C:/Users/admin/Downloads/batch_obj.hdf5',
-                         path_to_LF_batch='C:/Users/admin/Downloads/batch_Lf.hdf5')
+path_to_full_batch = './batch_obj.hdf5'
+path_to_LF_batch = './batch_Lf.hdf5'
 
-train_data, val_data = torch.utils.data.random_split(data, [0.8, 0.2])
+# get all sens names
+full_batch = h5py.File(path_to_full_batch)
+sens_names = list(set([s.split('_')[0] for s in full_batch['Channels'].keys()]))
+train_sens_names = sens_names[:int(train_fraction * len(sens_names))]
+val_sens_names = sens_names[int(train_fraction * len(sens_names)):]
+
+train_data = MicroseismDataset(path_to_full_batch=path_to_full_batch,
+                               path_to_LF_batch=path_to_LF_batch, channels=channels, sens_names=train_sens_names)
+
+val_data = MicroseismDataset(path_to_full_batch=path_to_full_batch,
+                             path_to_LF_batch=path_to_LF_batch, channels=channels, sens_names=val_sens_names)
+
+print(len(train_data), len(val_data), channels)
 
 train_dataloader = DataLoader(train_data, batch_size=4, shuffle=True)
 val_dataloader = DataLoader(val_data, batch_size=4, shuffle=True)
@@ -31,7 +46,7 @@ model.to(device)
 
 early_stopping = EarlyStopping(patience=5, min_delta=0)
 
-criterion = nn.MSELoss()
+criterion = nn.L1Loss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 train_loss = []
@@ -84,6 +99,12 @@ for epoch in range(150):
     print(f'epoch {epoch}, train_loss {np.mean(acc_train_loss)}, val_loss {np.mean(acc_val_loss)}')
 
 with open(val_ind_name_file, 'wb') as file:
-    pickle.dump(val_data.indices, file)
+    pickle.dump(val_sens_names, file)
+
+plt.plot(train_loss, marker='*', color='k', label='train')
+plt.plot(val_loss, marker='*', color='r', label='validation')
+plt.grid()
+plt.legend()
+plt.show()
 
 pass
