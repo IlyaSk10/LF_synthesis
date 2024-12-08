@@ -19,6 +19,26 @@ train_fraction = 0.8
 path_to_full_batch = './batch_obj.hdf5'
 path_to_LF_batch = './batch_Lf.hdf5'
 
+
+def Z_score(data, mean_std=False, inverse=False, mean=None, std=None):
+    batch_mean = data.mean(dim=2, keepdim=True)
+    batch_std = data.std(dim=2, keepdim=True)
+
+    data = (data - batch_mean) / batch_std
+
+    if mean_std:
+        mean = batch_mean[:, 0, 0].tolist()
+        std = batch_std[:, 0, 0].tolist()
+        return mean, std, data
+
+    if inverse:
+        for i in range(data.shape[0]):
+            data[i, :, :] = (data[i, :, :] + mean[i]) * std[i]
+        return data
+
+    return data
+
+
 # get all sens names
 full_batch = h5py.File(path_to_full_batch)
 sens_names = list(set([s.split('_')[0] for s in full_batch['Channels'].keys()]))
@@ -44,10 +64,10 @@ print('model params', total_params)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
-early_stopping = EarlyStopping(patience=5, min_delta=0)
+early_stopping = EarlyStopping(patience=10, min_delta=0)
 
 criterion = nn.L1Loss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=0.005)
 
 train_loss = []
 val_loss = []
@@ -58,9 +78,11 @@ for epoch in range(150):
     model.train()
     for i, (input, output) in enumerate(train_dataloader):
         # Forward pass
-        input = input.float().to(device)
-        output = output.float().to(device)
+        mean, std, input = Z_score(input.float().to(device), mean_std=True)
+        # output = output.float().to(device)
+        output = Z_score(output.float().to(device))
         outputs = model(input)
+        # outputs = Z_score(model(input), inverse=True, mean=mean, std=std)
         loss = criterion(outputs, output)
 
         # Backward pass and optimization
@@ -75,9 +97,11 @@ for epoch in range(150):
     model.eval()
     with torch.no_grad():
         for i, (input, output) in enumerate(val_dataloader):
-            input = input.float().to(device)
-            output = output.float().to(device)
+            mean, std, input = Z_score(input.float().to(device), mean_std=True)
+            # output = output.float().to(device)
+            output = Z_score(output.float().to(device))
             outputs = model(input)
+            # outputs = Z_score(model(input), inverse=True, mean=mean, std=std)
             loss = criterion(outputs, output)
 
             acc_val_loss.append(loss.item())

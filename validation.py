@@ -24,12 +24,32 @@ if delete:
 with open(val_ind_name_file, 'rb') as f:
     val_ind = pickle.load(f)
 
+
+def Z_score(data, mean_std=False, inverse=False, mean=None, std=None):
+    batch_mean = data.mean(dim=2, keepdim=True)
+    batch_std = data.std(dim=2, keepdim=True)
+
+    data = (data - batch_mean) / batch_std
+
+    if mean_std:
+        mean = batch_mean[:, 0, 0].tolist()
+        std = batch_std[:, 0, 0].tolist()
+        return mean, std, data
+
+    if inverse:
+        for i in range(data.shape[0]):
+            data[i, :, :] = (data[i, :, :] + mean[i]) * std[i]
+        return data
+
+    return data
+
+
 model = Unet()
 
 model.load_state_dict(torch.load(model_name, weights_only=True))
 
 val_data = MicroseismDataset(path_to_full_batch='./batch_obj.hdf5',
-                         path_to_LF_batch='./batch_Lf.hdf5', channels=channels, sens_names=val_ind)
+                             path_to_LF_batch='./batch_Lf.hdf5', channels=channels, sens_names=val_ind)
 
 val_dataloader = DataLoader(val_data, batch_size=4, shuffle=True)
 
@@ -45,9 +65,12 @@ k = 0
 model.eval()
 with torch.no_grad():
     for i, (input, output) in enumerate(val_dataloader):
-        input = input.float().to(device)
+
+        mean, std, input = Z_score(input.float().to(device), mean_std=True)
         output = output.float().to(device)
-        outputs = model(input)
+        # output = Z_score(output.float().to(device))
+        outputs = Z_score(model(input), inverse=True, mean=mean, std=std)
+        # outputs = model(input)
 
         print(f'batch number {i}')
 
@@ -55,7 +78,7 @@ with torch.no_grad():
             plt.figure(figsize=(15, 7))
             plt.plot(outputs[j, 0, :], label='predicted')
             plt.plot(output[j, 0, :], label='full wave (label)')
-            plt.plot(input[j, 0, :], label='input', linestyle=':')
+            # plt.plot(input[j, 0, :], label='input', linestyle=':')
             plt.legend()
             plt.savefig(f'./{folder_name}/{k}.png')
             plt.close()
