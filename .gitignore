@@ -5,3 +5,4 @@
 *.pkl
 results*/
 /venv
+/data

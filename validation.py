@@ -28,8 +28,8 @@ model = Unet()
 
 model.load_state_dict(torch.load(model_name, weights_only=True))
 
-val_data = MicroseismDataset(path_to_full_batch='./batch_obj.hdf5',
-                         path_to_LF_batch='./batch_Lf.hdf5', channels=channels, sens_names=val_ind)
+val_data = MicroseismDataset(path_to_full_batch='./data/batch_obj.hdf5',
+                             path_to_LF_batch='./data/batch_LF.hdf5', channels=channels, sens_names=val_ind)
 
 val_dataloader = DataLoader(val_data, batch_size=4, shuffle=True)
 

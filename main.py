@@ -16,8 +16,38 @@ val_ind_name_file = 'val_ind.pkl'
 channels = ['Z']
 train_fraction = 0.8
 
-path_to_full_batch = './batch_obj.hdf5'
-path_to_LF_batch = './batch_Lf.hdf5'
+path_to_full_batch = './data/batch_obj.hdf5'
+path_to_LF_batch = './data/batch_LF.hdf5'
+
+with open('./data/points_tdsh434.txt') as f:
+    points = f.readlines()
+
+source_points = []
+for pp in points:
+    res = pp.split(' ')
+    source_points.append([int(res[3]), int(res[4]), int(res[6])])
+
+with open('./data/sensors.txt') as f:
+    sensors = f.readlines()
+
+sensors_names = []
+sensors_coords = []
+for ss in sensors:
+    res = ss.split(' ')
+    sensors_names.append(res[0])
+    sensors_coords.append([int(res[3]), int(res[4]), int(res[6])])
+
+
+def dist(source_points, sensors_coords):
+    distance = []
+    for l in range(len(sensors_coords)):
+        distance.append(np.sqrt((sensors_coords[l][0] - source_points[0][0]) ** 2 + (
+                sensors_coords[l][1] - source_points[0][1]) ** 2 + (
+                                        sensors_coords[l][2] - source_points[0][2]) ** 2))
+    return distance
+
+
+distance = dist(source_points, sensors_coords)
 
 # get all sens names
 full_batch = h5py.File(path_to_full_batch)
@@ -26,8 +56,10 @@ train_sens_names = sens_names[:int(train_fraction * len(sens_names))]
 val_sens_names = sens_names[int(train_fraction * len(sens_names)):]
 
 train_data = MicroseismDataset(path_to_full_batch=path_to_full_batch,
-                               path_to_LF_batch=path_to_LF_batch, channels=channels, sens_names=train_sens_names)
+                               path_to_LF_batch=path_to_LF_batch, channels=channels, sens_names=train_sens_names,
+                               distance=distance, sensors_names=sensors_names)
 
+len(train_data)
 val_data = MicroseismDataset(path_to_full_batch=path_to_full_batch,
                              path_to_LF_batch=path_to_LF_batch, channels=channels, sens_names=val_sens_names)
 
