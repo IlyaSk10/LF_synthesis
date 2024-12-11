@@ -8,8 +8,8 @@ class Unet(nn.Module):
         super(Unet, self).__init__()
 
         # Encoder
-        #self.add = nn.Linear(1, 1250)
-        self.enc1 = nn.Conv1d(1, 16, kernel_size=3, padding=1)
+        self.add = nn.Linear(1, 1250)
+        self.enc1 = nn.Conv1d(1, 15, kernel_size=3, padding=1)
         self.enc2 = nn.Conv1d(16, 32, kernel_size=3, padding=1)
         self.enc3 = nn.Conv1d(32, 64, kernel_size=3, padding=1)
         self.enc4 = nn.Conv1d(64, 128, kernel_size=3, padding=1)
@@ -26,13 +26,12 @@ class Unet(nn.Module):
         self.pool = nn.MaxPool1d(2)
         self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
 
-    #def forward(self, add_x, x):
-    def forward(self, x):
+    def forward(self, add_x, x):
         # Encoder
 
-        #x_add = F.relu(self.add(add_x))
+        x_add = F.relu(self.add(add_x))
         x1 = F.relu(self.enc1(x))
-        #x1 = torch.cat((x_add, x1), dim=1)
+        x1 = torch.cat((x_add, x1), dim=1)
         x2 = self.pool(F.relu(self.enc2(x1)))
         x3 = self.pool(F.relu(self.enc3(x2)))
         x4 = self.pool(F.relu(self.enc4(x3)))

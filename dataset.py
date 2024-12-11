@@ -26,12 +26,13 @@ class MicroseismDataset(Dataset):
         for sen in self.sens:
             for i in range(self.num_power_points):
                 for j in range(6):
-                    sen.split('_')[0]
-                    self.batch_indx.append([sen, i, j])
+                    sens_ind = self.sensors_names.index(sen.split('_')[0])
+                    self.batch_indx.append([sens_ind, sen, i, j])
         return self.batch_indx
 
     def __getitem__(self, idx):
-        sen, pp, comp = self.create_dataset()[idx]
+        sens_ind, sen, pp, comp = self.create_dataset()[idx]
+        dist = np.expand_dims(np.array([self.distance[sens_ind]]), axis=0)
         input = np.expand_dims(self.LF_batch['Channels'][sen]['data'][pp, comp, :], axis=0)
         output = np.expand_dims(self.full_batch['Channels'][sen]['data'][pp, comp, :], axis=0)
-        return input, output
+        return dist, input, output
