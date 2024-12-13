@@ -5,7 +5,7 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 import h5py
 
-from net import *
+from net_using_dist import *
 from dataset import *
 from early_stop import *
 
@@ -18,6 +18,17 @@ train_fraction = 0.8
 batch_size = 10
 path_to_full_batch = './data/batch_obj.hdf5'
 path_to_LF_batch = './data/batch_LF.hdf5'
+
+torch.manual_seed(42)
+np.random.seed(42)
+# random.seed(42)
+
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(42)
+    torch.cuda.manual_seed_all(42)
+
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 with open('./data/points_tdsh434.txt') as f:
     points = f.readlines()
@@ -51,6 +62,7 @@ def dist(source_points, sensors_coords):
 
 
 distance = dist(source_points, sensors_coords)
+distance = distance / max(distance)
 
 
 def Z_score(data, mean_std=False, inverse=False, mean=None, std=None):
@@ -72,11 +84,6 @@ def Z_score(data, mean_std=False, inverse=False, mean=None, std=None):
     return data
 
 
-# get all sens names
-# full_batch = h5py.File(path_to_full_batch)
-# sens_names = list(set([s.split('_')[0] for s in full_batch['Channels'].keys()]))
-# train_sens_names = sens_names[:int(train_fraction * len(sens_names))]
-# val_sens_names = sens_names[int(train_fraction * len(sens_names)):]
 train_sens_names = sensors_names[:int(train_fraction * len(sensors_names))]
 val_sens_names = sensors_names[int(train_fraction * len(sensors_names)):]
 
@@ -119,8 +126,8 @@ for epoch in range(150):
         add_input = add_input.float().to(device)
         # output = output.float().to(device)
         output1 = Z_score(output1.float().to(device))
-        #outputs1 = model(add_input, input1)
-        outputs1 = model(input1)
+        outputs1 = model(add_input, input1)
+        # outputs1 = model(input1)
         # outputs = Z_score(model(input), inverse=True, mean=mean, std=std)
         loss = criterion(outputs1, output1)
 
@@ -140,8 +147,8 @@ for epoch in range(150):
             add_input = add_input.float().to(device)
             # output = output.float().to(device)
             output = Z_score(output.float().to(device))
-            #outputs = model(add_input, input)
-            outputs = model(input)
+            outputs = model(add_input, input)
+            # outputs = model(input)
             # outputs = Z_score(model(input), inverse=True, mean=mean, std=std)
             loss = criterion(outputs, output)
 
@@ -166,14 +173,26 @@ for epoch in range(150):
 with open(val_ind_name_file, 'wb') as file:
     pickle.dump(val_sens_names, file)
 
-plt.plot(train_loss, marker='*', color='k', label='train')
-plt.plot(val_loss, marker='*', color='r', label='validation')
-plt.grid()
+# plt.plot(train_loss, marker='*', color='k', label='train')
+# plt.plot(val_loss, marker='*', color='r', label='validation')
+# plt.grid()
+# plt.legend()
+# plt.show()
+
+val_dataloader = DataLoader(val_data, batch_size=batch_size)
+add_input, input, output = next(iter(val_dataloader))
+mean, std, input = Z_score(input.float().to(device), mean_std=True)
+add_input = add_input.float().to(device)
+output = Z_score(output.float().to(device))
+outputs = model(add_input, input)
+print(criterion(outputs, output))
+
+k = 4
+plt.plot(input[k, 0, :], label='input')
+plt.plot(outputs[k, 0, :].detach().numpy(), label='predicted')
+plt.plot(output[k, 0, :].detach().numpy(), label='full wave')
 plt.legend()
+plt.grid()
 plt.show()
 
-# plt.plot(input[0,0,:],label='input')
-# plt.plot(outputs[0,0,:].detach().numpy(),label='predicted')
-# plt.plot(output[0,0,:].detach().numpy(),label='full wave')
-# plt.legend()
 pass
