@@ -1,23 +1,28 @@
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-# from torchsummary import summary
 import torch.optim as optim
 import matplotlib.pyplot as plt
-import h5py
+import numpy as np
 
-from net import *
+from net_using_dist import *
 from dataset import *
 from early_stop import *
+from funcs import *
 
 import pickle
 
-save_model_name = f'checkpoint_MSE_Z.pth'
+save_model_name = f'checkpoint_MSE_dist.pth'
 val_ind_name_file = 'val_ind.pkl'
+train_ind_name_file = 'train_ind.pkl'
 channels = ['Z']
 train_fraction = 0.8
 batch_size = 10
 path_to_full_batch = './data/batch_obj.hdf5'
 path_to_LF_batch = './data/batch_LF.hdf5'
+num_sensors = 60
+random_choice = True
+epochs = 150
+use_selection_sens = True
 
 with open('./data/points_tdsh434.txt') as f:
     points = f.readlines()
@@ -37,48 +42,28 @@ for ss in sensors:
     sensors_names.append(res[0])
     sensors_coords.append([int(res[3]), int(res[4]), int(res[6])])
 
-sensors_names = sensors_names[:30]
-sensors_coords = sensors_coords[:30]
-
-
-def dist(source_points, sensors_coords):
-    distance = []
-    for l in range(len(sensors_coords)):
-        distance.append(np.sqrt((sensors_coords[l][0] - source_points[0][0]) ** 2 + (
-                sensors_coords[l][1] - source_points[0][1]) ** 2 + (
-                                        sensors_coords[l][2] - source_points[0][2]) ** 2))
-    return distance
-
-
 distance = dist(source_points, sensors_coords)
 
+if use_selection_sens:
 
-def Z_score(data, mean_std=False, inverse=False, mean=None, std=None):
-    batch_mean = data.mean(dim=2, keepdim=True)
-    batch_std = data.std(dim=2, keepdim=True)
+    with open(train_ind_name_file, 'rb') as f:
+        train_sens_names = pickle.load(f)
 
-    data = (data - batch_mean) / batch_std
+    with open(val_ind_name_file, 'rb') as f:
+        val_sens_names = pickle.load(f)
+else:
 
-    if mean_std:
-        mean = batch_mean[:, 0, 0].tolist()
-        std = batch_std[:, 0, 0].tolist()
-        return mean, std, data
+    if random_choice:
+        sensors_names = list(map(lambda x: int(x), sensors_names))
+        selected_sensors_names = np.random.choice(range(min(sensors_names), max(sensors_names) + 1), size=num_sensors,
+                                                  replace=False)
+        selected_sensors_names = list(map(lambda x: str(x), selected_sensors_names))
+        sensors_names = list(map(lambda x: str(x), sensors_names))
+    else:
+        selected_sensors_names = sensors_names[:num_sensors]
 
-    if inverse:
-        for i in range(data.shape[0]):
-            data[i, :, :] = (data[i, :, :] + mean[i]) * std[i]
-        return data
-
-    return data
-
-
-# get all sens names
-# full_batch = h5py.File(path_to_full_batch)
-# sens_names = list(set([s.split('_')[0] for s in full_batch['Channels'].keys()]))
-# train_sens_names = sens_names[:int(train_fraction * len(sens_names))]
-# val_sens_names = sens_names[int(train_fraction * len(sens_names)):]
-train_sens_names = sensors_names[:int(train_fraction * len(sensors_names))]
-val_sens_names = sensors_names[int(train_fraction * len(sensors_names)):]
+    train_sens_names = selected_sensors_names[:int(train_fraction * len(selected_sensors_names))]
+    val_sens_names = selected_sensors_names[int(train_fraction * len(selected_sensors_names)):]
 
 train_data = MicroseismDataset(path_to_full_batch=path_to_full_batch,
                                path_to_LF_batch=path_to_LF_batch, channels=channels, sens_names=train_sens_names,
@@ -108,21 +93,21 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)  # , weight_decay=0.005)
 
 train_loss = []
 val_loss = []
-for epoch in range(150):
+for epoch in range(epochs):
     acc_train_loss = []
     acc_val_loss = []
 
     model.train()
-    for i, (add_input, input1, output1) in enumerate(train_dataloader):
+    for i, (add_input, input, output) in enumerate(train_dataloader):
         # Forward pass
-        mean, std, input1 = Z_score(input1.float().to(device), mean_std=True)
+        mean, std, input = Z_score(input.float().to(device), mean_std=True)
         add_input = add_input.float().to(device)
         # output = output.float().to(device)
-        output1 = Z_score(output1.float().to(device))
-        #outputs1 = model(add_input, input1)
-        outputs1 = model(input1)
+        output = Z_score(output.float().to(device))
+        outputs = model(add_input, input)
+        # outputs = model(input)
         # outputs = Z_score(model(input), inverse=True, mean=mean, std=std)
-        loss = criterion(outputs1, output1)
+        loss = criterion(outputs, output)
 
         # Backward pass and optimization
         optimizer.zero_grad()
@@ -140,8 +125,8 @@ for epoch in range(150):
             add_input = add_input.float().to(device)
             # output = output.float().to(device)
             output = Z_score(output.float().to(device))
-            #outputs = model(add_input, input)
-            outputs = model(input)
+            outputs = model(add_input, input)
+            # outputs = model(input)
             # outputs = Z_score(model(input), inverse=True, mean=mean, std=std)
             loss = criterion(outputs, output)
 
@@ -163,8 +148,12 @@ for epoch in range(150):
 
     print(f'epoch {epoch}, train_loss {np.mean(acc_train_loss)}, val_loss {np.mean(acc_val_loss)}')
 
-with open(val_ind_name_file, 'wb') as file:
-    pickle.dump(val_sens_names, file)
+if not use_selection_sens:
+    with open(train_ind_name_file, 'wb') as file:
+        pickle.dump(train_sens_names, file)
+
+    with open(val_ind_name_file, 'wb') as file:
+        pickle.dump(val_sens_names, file)
 
 plt.plot(train_loss, marker='*', color='k', label='train')
 plt.plot(val_loss, marker='*', color='r', label='validation')
@@ -172,8 +161,19 @@ plt.grid()
 plt.legend()
 plt.show()
 
-# plt.plot(input[0,0,:],label='input')
-# plt.plot(outputs[0,0,:].detach().numpy(),label='predicted')
-# plt.plot(output[0,0,:].detach().numpy(),label='full wave')
+# k = 0
+# plt.plot(input[k, 0, :], label='input')
+# plt.plot(outputs[k, 0, :].detach().numpy(), label='predicted')
+# plt.plot(output[k, 0, :].detach().numpy(), label='full wave')
+# plt.grid()
 # plt.legend()
+#
+# # check initial input output
+# k = 1
+# add_input, input, output = next(iter(val_dataloader))
+# plt.plot(input[k, 0, :], label='input')
+# plt.plot(output[k, 0, :].detach().numpy(), label='full wave')
+# plt.grid()
+# plt.legend()
+
 pass
