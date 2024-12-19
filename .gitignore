@@ -3,5 +3,6 @@
 /.idea
 results*/
 /venv
-/data
 /compare
+/data
+/remote_data
