@@ -11,20 +11,23 @@ from funcs import *
 
 import pickle
 
-save_model_name = f'checkpoint_MSE_dist.pth'
-val_ind_name_file = 'val_ind.pkl'
-train_ind_name_file = 'train_ind.pkl'
+data_folder = 'data_volumetric'
+save_model_name = f'checkpoint_MSE_dist_vol.pth'
+val_ind_name_file = 'val_ind_vol.pkl'
+train_ind_name_file = 'train_ind_vol.pkl'
 channels = ['Z']
 train_fraction = 0.8
 batch_size = 10
-path_to_full_batch = './data/batch_obj.hdf5'
-path_to_LF_batch = './data/batch_LF.hdf5'
-num_sensors = 60
-random_choice = True
+path_to_full_batch = f'./{data_folder}/batch_obj.hdf5'
+path_to_LF_batch = f'./{data_folder}/batch_LF.hdf5'
+num_sensors = 10
+# random_choice = True
 epochs = 150
-use_selection_sens = True
+use_selection_sens = False
+train_pp = [0,1,2]
+val_pp = [3]
 
-with open('./data/points_tdsh434.txt') as f:
+with open(f'./{data_folder}/points_all5.txt') as f:
     points = f.readlines()
 
 source_points = []
@@ -32,7 +35,7 @@ for pp in points:
     res = pp.split(' ')
     source_points.append([int(res[3]), int(res[4]), int(res[6])])
 
-with open('./data/sensors.txt') as f:
+with open(f'./{data_folder}/sensors.txt') as f:
     sensors = f.readlines()
 
 sensors_names = []
@@ -53,25 +56,27 @@ if use_selection_sens:
         val_sens_names = pickle.load(f)
 else:
 
-    if random_choice:
-        sensors_names = list(map(lambda x: int(x), sensors_names))
-        selected_sensors_names = np.random.choice(range(min(sensors_names), max(sensors_names) + 1), size=num_sensors,
-                                                  replace=False)
-        selected_sensors_names = list(map(lambda x: str(x), selected_sensors_names))
-        sensors_names = list(map(lambda x: str(x), sensors_names))
-    else:
-        selected_sensors_names = sensors_names[:num_sensors]
+    # if random_choice:
+    #     sensors_names = list(map(lambda x: int(x), sensors_names))
+    #     selected_sensors_names = np.random.choice(range(min(sensors_names), max(sensors_names) + 1), size=num_sensors,
+    #                                               replace=False)
+    #     selected_sensors_names = list(map(lambda x: str(x), selected_sensors_names))
+    #     sensors_names = list(map(lambda x: str(x), sensors_names))
+    # else:
+    #     selected_sensors_names = sensors_names[:num_sensors]
+
+    selected_sensors_names = sensors_names[:num_sensors]
 
     train_sens_names = selected_sensors_names[:int(train_fraction * len(selected_sensors_names))]
     val_sens_names = selected_sensors_names[int(train_fraction * len(selected_sensors_names)):]
 
 train_data = MicroseismDataset(path_to_full_batch=path_to_full_batch,
                                path_to_LF_batch=path_to_LF_batch, channels=channels, sens_names=train_sens_names,
-                               distance=distance, sensors_names=sensors_names)
+                               distance=distance, sensors_names=sensors_names, points=train_pp)
 
 val_data = MicroseismDataset(path_to_full_batch=path_to_full_batch,
                              path_to_LF_batch=path_to_LF_batch, channels=channels, sens_names=val_sens_names,
-                             distance=distance, sensors_names=sensors_names)
+                             distance=distance, sensors_names=sensors_names, points=val_pp)
 
 print(len(train_data), len(val_data), channels)
 

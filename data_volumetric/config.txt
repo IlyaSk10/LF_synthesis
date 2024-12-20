@@ -1,0 +1,15 @@
+[General]
+Area: 1667909 KNOC_240_434_fact
+Project: 1670866 434_fact
+Schema: 1670868 240_fact
+Geometry: 1671156 ModelScope_1
+Geometry resolution: (626, 601, 336)
+Geometry cell size: (12.0, 12.0, 12.0)
+Grid edge: (0, 0, 0)
+Well: 1673169 434
+Altitude: 240.0
+[Transformation]
+o: (4959353.568, 279591.62905, 0.0)
+u: (-11.999843749999854, -3.125000002910383E-4, 0.0)
+v: (1.5625000014551915E-4, -12.000312500000291, 0.0)
+w: (0.0, 0.0, 12.0)

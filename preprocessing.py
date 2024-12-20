@@ -7,12 +7,12 @@ import time
 cutoff = 15  # Частота среза, Гц
 order = 5  # Порядок фильтра
 fs = 500
-batch_filename = './data/batch_LF.hdf5'
+batch_filename = './data_volumetric/batch_LF.hdf5'
 
-ff = h5py.File('./data/batch_obj.hdf5')
+ff = h5py.File('./data_volumetric/batch_obj.hdf5')
 
-# initial_sens = list(ff['Channels'].keys())[2]
-initial_sens = '714_Z'
+initial_sens = list(ff['Channels'].keys())[2]
+#initial_sens = '714_Z'
 signal = ff['Channels'][initial_sens]['data'][0, 1, :]
 
 num_source_points = ff['Channels'][initial_sens]['data'].shape[0]
